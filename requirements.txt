@@ -1,0 +1,6 @@
+fastapi 
+uvicorn 
+pydantic 
+requests 
+python-docx 
+docx2pdf
