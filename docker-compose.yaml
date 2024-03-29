@@ -1,0 +1,10 @@
+version: '3.8'
+services:
+  fastapi-app:
+    image: nom_de_votre_image  # Remplacez par le nom de votre image Docker
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app  # Bind mount du répertoire courant du projet dans /app dans le conteneur
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload

@@ -1,6 +1,5 @@
-fastapi 
-uvicorn 
-pydantic 
-requests 
-python-docx 
-docx2pdf
+fastapi==0.79.0
+uvicorn==0.17.6
+python-multipart==0.0.5
+requests==2.27.1
+pandoc

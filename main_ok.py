@@ -31,14 +31,9 @@ async def convert_docx_to_pdf(docx_url: str = Query(..., description="The URL of
         pdf_path = docx_path.replace(".docx", ".pdf")
 
         # Commande LibreOffice pour la conversion, avec paramètres pour la qualité des images
-        cmd = [
-            "soffice", "--headless", "--convert-to", 
-            "pdf:writer_pdf_Export:UseLosslessCompression=true,MaxImageResolution=300",
-            "--outdir", os.path.dirname(pdf_path), docx_path
-        ]
- 
-        # Exécute la commande de conversion
-        subprocess.run(cmd, check=True)
+        subprocess.run(["pandoc", docx_path, "-o", pdf_path, "--pdf-engine=pdflatex"], check=True)
+
+
 
         # Vérifie si le fichier PDF a été créé
         if not os.path.exists(pdf_path):
@@ -50,7 +45,7 @@ async def convert_docx_to_pdf(docx_url: str = Query(..., description="The URL of
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=400, detail=f"Error downloading the file: {e}")
     except subprocess.CalledProcessError as e:
-        raise HTTPException(status_code=500, detail="Error converting the file.")
+        raise HTTPException(status_code=500, detail=f"Error converting the file: {e.stderr}")
     finally:
         # Nettoie le fichier temporaire .docx
         if docx_path and os.path.exists(docx_path):
