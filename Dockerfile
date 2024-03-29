@@ -1,30 +1,22 @@
-# Étape 1: Utiliser l'image pandoc/latex comme base pour obtenir Pandoc et LaTeX
-FROM pandoc/latex:latest as pandoc-latex-stage
+# Utilise l'image officielle de Pandoc avec LaTeX
+FROM pandoc/latex:latest-ubuntu
 
-# Étape 2: Construire l'image finale basée sur Ubuntu
-FROM ubuntu:latest
-
-# Définir le répertoire de travail
 WORKDIR /app
 
-# Installer Python et pip
+# Met à jour les paquets, installe Python et pip
 RUN apt-get update && \
-    apt-get install -y python3 python3-pip && \
+    apt-get install -y python3 python3-pip python3-distutils python3-apt && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Copier Pandoc et ses dépendances depuis l'étape pandoc-latex-stage
-COPY --from=pandoc-latex-stage /usr/local/bin/pandoc /usr/local/bin/pandoc
-COPY --from=pandoc-latex-stage /opt /opt
-
-# Installer les dépendances Python
+# Installe les dépendances Python
 COPY requirements.txt requirements.txt
 RUN pip3 install -r requirements.txt
 
-# Copier les fichiers de l'application dans le conteneur
+# Copie les fichiers de l'application dans le conteneur
 COPY . /app
 
-# Exposer le port sur lequel l'API va écouter
+# Expose le port sur lequel l'API va écouter
 EXPOSE 8000
 
 # Commande pour exécuter l'application
