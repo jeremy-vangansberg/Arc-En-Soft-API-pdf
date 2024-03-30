@@ -3,8 +3,8 @@ services:
   fastapi:
     build: ./api/.
     container_name: fastapi_app
-    environment:
-      - CADDY_INGRESS=api-pdf.easypanel.host
+    env_file:
+      - ./api/.env
     expose:
       - "80"
 
