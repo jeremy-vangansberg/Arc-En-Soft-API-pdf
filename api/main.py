@@ -5,9 +5,6 @@ import requests
 from tempfile import NamedTemporaryFile
 import os
 from ftplib import FTP
-# from dotenv import load_dotenv
-
-from ftplib import FTP
 
 def upload_file_ftp(file_path, ftp_host, ftp_username, ftp_password, ftp_directory, output_name):
     with FTP(ftp_host, ftp_username, ftp_password) as ftp:

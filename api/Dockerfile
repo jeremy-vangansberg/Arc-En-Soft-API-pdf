@@ -18,7 +18,7 @@ RUN pip install -r requirements.txt
 COPY . /app
 
 # Expose le port sur lequel l'API va écouter
-EXPOSE 8000
+EXPOSE 80
 
 # Commande pour exécuter l'application
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80"]
