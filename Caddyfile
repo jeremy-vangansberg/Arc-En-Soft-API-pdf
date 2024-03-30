@@ -1,0 +1,3 @@
+api-pdf.easypanel.host {
+  reverse_proxy fastapi_app:80
+}

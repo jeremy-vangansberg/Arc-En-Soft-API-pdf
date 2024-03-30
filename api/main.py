@@ -40,7 +40,7 @@ async def convert_docx_to_pdf(docx_url: str = Query(..., description="The URL of
             raise HTTPException(status_code=500, detail="Failed to create PDF file.")
 
         # Retourne le fichier PDF généré
-        return FileResponse(pdf_path, media_type='application/pdf', filename="converted.pdf")
+        return FileResponse(pdf_path, media_type='application/pdf', filename="converted.pdf", headers={"Content-Disposition": "attachment; filename=converted.pdf"})
     
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=400, detail=f"Error downloading the file: {e}")
