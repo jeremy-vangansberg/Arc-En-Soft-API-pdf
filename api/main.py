@@ -30,13 +30,25 @@ def ensure_ftp_path(ftp, path):
         ftp.mkd(path)  # Crée le répertoire actuel
         ftp.cwd(path)  # Change vers le répertoire créé
 
+from ftplib import FTP, error_perm
+import os
+
 def upload_file_ftp(file_path, ftp_host, ftp_username, ftp_password, output_path):
     with FTP(ftp_host, ftp_username, ftp_password) as ftp:
         directory_path, filename = os.path.split(output_path)
         ensure_ftp_path(ftp, directory_path)  # Assure que le chemin existe
         
         with open(file_path, 'rb') as file:
-            ftp.storbinary(f'STOR {filename}', file)  # Téléverse le fichier
+            try:
+                # Téléverse le fichier en utilisant STOR et en spécifiant le nom du fichier sur le serveur FTP
+                ftp.storbinary(f'STOR {filename}', file)
+            except error_perm as e:
+                # Gère les erreurs de permissions et autres erreurs FTP
+                print(f"Erreur FTP lors du téléversement : {e}")
+            except Exception as e:
+                # Gère toutes les autres exceptions
+                print(f"Erreur lors du téléversement : {e}")
+
 
 
 
