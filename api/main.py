@@ -68,7 +68,7 @@ async def convert_docx_to_pdf(docx_url: str = Query(..., description="The URL of
 async def convert_store(
     docx_url: str = Query(..., description="The URL of the .docx file to be converted"), 
     output_name: str = Query("converted.pdf", description="The desired output PDF file name"),
-    ftp_directory = str = Query("pdf", description="The desired output folder")):
+    ftp_directory : str = Query("pdf", description="The desired output folder")):
     docx_path = None
     pdf_path = None
     try:
