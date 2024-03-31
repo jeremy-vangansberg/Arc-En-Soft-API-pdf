@@ -6,12 +6,40 @@ from tempfile import NamedTemporaryFile
 import os
 from ftplib import FTP
 
-def upload_file_ftp(file_path, ftp_host, ftp_username, ftp_password, ftp_directory, output_name):
+from ftplib import FTP
+import os
+
+def upload_file_ftp(file_path, ftp_host, ftp_username, ftp_password, output_path):
+    # Séparer le chemin du répertoire et le nom du fichier à partir de output_path
+    directory_path, filename = os.path.split(output_path)
+    
     with FTP(ftp_host, ftp_username, ftp_password) as ftp:
-        ftp.cwd(ftp_directory)
+        # Naviguer dans le répertoire du serveur FTP
+        # Si le chemin du répertoire n'est pas vide, naviguer dossier par dossier
+        if directory_path:
+            try:
+                ftp.cwd(directory_path)
+            except Exception as e:
+                print(f"Erreur lors du changement de répertoire : {e}")
+                # Créer le chemin du répertoire si nécessaire, dossier par dossier
+                sub_paths = directory_path.split('/')
+                current_path = ''
+                for sub_path in sub_paths:
+                    current_path = os.path.join(current_path, sub_path)
+                    try:
+                        ftp.cwd(current_path)
+                    except Exception as e:
+                        try:
+                            ftp.mkd(sub_path)
+                            ftp.cwd(current_path)
+                        except Exception as e:
+                            print(f"Erreur lors de la création et du changement vers {current_path}: {e}")
+                            return
+        
+        # Ouvrir le fichier local et téléverser sur le serveur FTP sous le nom de fichier défini
         with open(file_path, 'rb') as file:
-            # Utilisez output_name pour le nom du fichier sur le serveur FTP
-            ftp.storbinary(f'STOR {os.path.basename(output_name)}', file)
+            ftp.storbinary(f'STOR {filename}', file)
+
 
 
 
@@ -67,8 +95,7 @@ async def convert_docx_to_pdf(docx_url: str = Query(..., description="The URL of
 @app.get("/convert-store/")
 async def convert_store(
     docx_url: str = Query(..., description="The URL of the .docx file to be converted"), 
-    output_name: str = Query("converted.pdf", description="The desired output PDF file name"),
-    ftp_directory : str = Query("pdf", description="The desired output folder")):
+    output_path: str = Query("converted.pdf", description="The desired output path for PDF file name")):
     docx_path = None
     pdf_path = None
     try:
@@ -99,11 +126,11 @@ async def convert_store(
         # ftp_directory = os.getenv("FTP_DIRECTORY")
 
         # Vérifier que toutes les informations nécessaires sont présentes
-        if not all([ftp_host, ftp_username, ftp_password, ftp_directory]):
+        if not all([ftp_host, ftp_username, ftp_password, output_path]):
             raise HTTPException(status_code=500, detail="FTP credentials are not fully configured.")
 
         # Téléverse le fichier PDF sur le serveur FTP
-        upload_file_ftp(pdf_path, ftp_host, ftp_username, ftp_password, ftp_directory, output_name)
+        upload_file_ftp(pdf_path, ftp_host, ftp_username, ftp_password, output_path)
 
         return {"message": "Fichier converti et téléversé avec succès sur FTP."}
     
