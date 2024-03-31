@@ -65,7 +65,10 @@ async def convert_docx_to_pdf(docx_url: str = Query(..., description="The URL of
         # Ici, on ne supprime pas le PDF dans finally pour permettre son téléchargement
 
 @app.get("/convert-store/")
-async def convert_store(docx_url: str = Query(..., description="The URL of the .docx file to be converted"), output_name: str = Query("converted.pdf", description="The desired output PDF file name")):
+async def convert_store(
+    docx_url: str = Query(..., description="The URL of the .docx file to be converted"), 
+    output_name: str = Query("converted.pdf", description="The desired output PDF file name"),
+    ftp_directory = str = Query("pdf", description="The desired output folder")):
     docx_path = None
     pdf_path = None
     try:
@@ -93,7 +96,7 @@ async def convert_store(docx_url: str = Query(..., description="The URL of the .
         ftp_host = os.getenv("FTP_HOST")
         ftp_username = os.getenv("FTP_USERNAME")
         ftp_password = os.getenv("FTP_PASSWORD")
-        ftp_directory = os.getenv("FTP_DIRECTORY")
+        # ftp_directory = os.getenv("FTP_DIRECTORY")
 
         # Vérifier que toutes les informations nécessaires sont présentes
         if not all([ftp_host, ftp_username, ftp_password, ftp_directory]):
