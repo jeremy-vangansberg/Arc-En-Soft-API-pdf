@@ -108,8 +108,8 @@ async def convert_store(
             docx_path = temp_docx.name
 
 
-        if not output_name.lower().endswith('.pdf'):
-            output_name += '.pdf'
+        if not output_path.lower().endswith('.pdf'):
+            output_path += '.pdf'
 
         pdf_path = docx_path.replace(".docx", ".pdf")
 
