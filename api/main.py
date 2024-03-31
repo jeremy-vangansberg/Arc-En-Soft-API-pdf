@@ -9,36 +9,35 @@ from ftplib import FTP
 from ftplib import FTP
 import os
 
+from ftplib import FTP
+import os
+
+def ensure_ftp_path(ftp, path):
+    """Assure que le chemin donné existe sur le serveur FTP, en créant les dossiers si nécessaire."""
+    if path == "/":
+        # La racine existe toujours
+        ftp.cwd("/")
+        return
+    if path == "":
+        # Chemin vide, pas besoin de changer de répertoire
+        return
+    try:
+        ftp.cwd(path)  # Essaie de changer vers le répertoire
+    except Exception as e:
+        parent_path, _ = os.path.split(path.rstrip("/"))
+        ensure_ftp_path(ftp, parent_path)  # Crée le parent récursivement
+        print(f"Création du répertoire: {path}")
+        ftp.mkd(path)  # Crée le répertoire actuel
+        ftp.cwd(path)  # Change vers le répertoire créé
+
 def upload_file_ftp(file_path, ftp_host, ftp_username, ftp_password, output_path):
-    # Séparer le chemin du répertoire et le nom du fichier à partir de output_path
-    directory_path, filename = os.path.split(output_path)
-    
     with FTP(ftp_host, ftp_username, ftp_password) as ftp:
-        # Naviguer dans le répertoire du serveur FTP
-        # Si le chemin du répertoire n'est pas vide, naviguer dossier par dossier
-        if directory_path:
-            try:
-                ftp.cwd(directory_path)
-            except Exception as e:
-                print(f"Erreur lors du changement de répertoire : {e}")
-                # Créer le chemin du répertoire si nécessaire, dossier par dossier
-                sub_paths = directory_path.split('/')
-                current_path = ''
-                for sub_path in sub_paths:
-                    current_path = os.path.join(current_path, sub_path)
-                    try:
-                        ftp.cwd(current_path)
-                    except Exception as e:
-                        try:
-                            ftp.mkd(sub_path)
-                            ftp.cwd(current_path)
-                        except Exception as e:
-                            print(f"Erreur lors de la création et du changement vers {current_path}: {e}")
-                            return
+        directory_path, filename = os.path.split(output_path)
+        ensure_ftp_path(ftp, directory_path)  # Assure que le chemin existe
         
-        # Ouvrir le fichier local et téléverser sur le serveur FTP sous le nom de fichier défini
         with open(file_path, 'rb') as file:
-            ftp.storbinary(f'STOR {filename}', file)
+            ftp.storbinary(f'STOR {filename}', file)  # Téléverse le fichier
+
 
 
 
