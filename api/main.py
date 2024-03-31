@@ -105,7 +105,7 @@ async def convert_docx_to_pdf(docx_url: str = Query(..., description="The URL of
 
 @app.get("/convert-store/")
 async def convert_store(
-    docx_url: str = Query("https://capcertification.com/wp-content/uploads/audit/2021/11361/11361-Contrat-CAPCERT-20240328-174118.docx", description="The URL of the .docx file to be converted"), 
+    docx_url: str = Query(..., description="The URL of the .docx file to be converted"), 
     output_path: str = Query("folder/converted.pdf", description="The desired output path for PDF file name")):
     docx_path = None
     pdf_path = None
