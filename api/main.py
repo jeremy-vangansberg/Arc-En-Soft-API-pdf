@@ -3,43 +3,45 @@ from fastapi.responses import FileResponse
 import subprocess
 import requests
 from tempfile import NamedTemporaryFile
-import os
 from ftplib import FTP
+import os
 
 def ensure_ftp_path(ftp, path):
     """Crée récursivement le chemin sur le serveur FTP si nécessaire."""
-    # Normaliser le chemin pour supprimer le slash de début si présent
-    path = path.lstrip('/')
-    # Diviser le chemin pour obtenir chaque dossier
+    path = path.lstrip('/')  # Supprime le slash initial pour éviter les chemins absolus
     directories = path.split('/')
     
     current_path = ''
     for directory in directories:
-        if directory:  # Ignorer les chaînes vides pour éviter les erreurs
-            current_path += "/" + directory  # Construire le chemin progressivement
+        if directory:  # Ignore les chaînes vides
+            current_path += "/" + directory
             try:
-                ftp.cwd(current_path)  # Essayer de naviguer dans le dossier
-            except Exception as e:
-                try:
-                    ftp.mkd(current_path)  # Tentative de création si le dossier n'existe pas
-                    ftp.cwd(current_path)  # Et naviguer dans le dossier créé
-                except Exception as e:
-                    raise Exception(f"Erreur lors de la création du dossier {current_path} : {e}")
+                ftp.cwd(current_path)  # Tente de naviguer dans le dossier
+            except Exception:
+                ftp.mkd(current_path)  # Crée le dossier s'il n'existe pas
+                ftp.cwd(current_path)  # Navigue dans le dossier nouvellement créé
 
 def upload_file_ftp(file_path, ftp_host, ftp_username, ftp_password, output_path):
     with FTP(ftp_host, ftp_username, ftp_password) as ftp:
-        # S'assurer que le chemin complet existe sur le serveur FTP
+        # Décompose output_path pour obtenir le chemin du dossier et le nom du fichier
         directory_path, filename = os.path.split(output_path)
+        # S'assure que le chemin du dossier existe
         ensure_ftp_path(ftp, directory_path)
         
+        # Retourne à la racine du FTP
+        ftp.cwd('/')
+        
+        # Construit le chemin complet du fichier sur le serveur
+        # Assurez-vous que directory_path ne commence pas par un '/' pour éviter les chemins absolus non intentionnels
+        complete_path = os.path.join('/' + directory_path, filename)
+        
         with open(file_path, 'rb') as file:
-            # Construire le chemin complet du fichier sur le serveur
-            complete_path = os.path.join(directory_path, filename).lstrip('/')
             try:
-                # Téléverser le fichier
+                # Téléverse le fichier au chemin complet
                 ftp.storbinary(f'STOR {complete_path}', file)
             except Exception as e:
                 print(f"Erreur lors du téléversement du fichier : {e}")
+
 
 app = FastAPI()
 
