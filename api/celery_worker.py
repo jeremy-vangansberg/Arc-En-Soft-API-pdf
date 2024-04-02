@@ -1,4 +1,5 @@
 from celery import Celery
+import os
 
 REDIS_PASSWORD= os.getenv('REDIS_PASSWORD')
 
