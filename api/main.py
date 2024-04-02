@@ -1,12 +1,26 @@
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 import subprocess
 import requests
 from tempfile import NamedTemporaryFile
 from ftplib import FTP
 import os
-
 from fastapi import BackgroundTasks
+from starlette.responses import JSONResponse
+from typing import List
+
+app = FastAPI()
+
+# Liste des adresses IP autorisées
+ALLOWED_IPS = ["192.168.1.1", "127.0.0.1", "45.81.84.133", '172.18.0.2']
+
+@app.middleware("http")
+async def ip_filter_middleware(request: Request, call_next):
+    client_host = request.client.host
+    if client_host not in ALLOWED_IPS:
+        return JSONResponse(status_code=403, content={"detail": "Accès non autorisé."})
+    response = await call_next(request)
+    return response
 
 def ensure_ftp_path(ftp, path):
     """Crée récursivement le chemin sur le serveur FTP si nécessaire."""
@@ -80,7 +94,31 @@ def upload_file_ftp(file_path: str, ftp_host: str, ftp_username: str, ftp_passwo
 
 
 
-app = FastAPI()
+def process_docx_to_pdf_and_upload(docx_url: str, output_path: str, ftp_host: str, ftp_username: str, ftp_password: str):
+    """
+    Télécharge un fichier DOCX, le convertit en PDF, et téléverse le PDF sur FTP.
+    Cette fonction gère l'ensemble du processus en une seule séquence.
+    """
+    docx_path = None
+    pdf_path = None
+    try:
+        # Téléchargement du fichier DOCX
+        docx_path = download_docx_file(docx_url)
+        
+        # Conversion en PDF
+        pdf_path = convert_docx_to_pdf(docx_path)
+        
+        # Téléversement sur FTP
+        upload_file_ftp(pdf_path, ftp_host, ftp_username, ftp_password, output_path)
+        
+    except Exception as e:
+        print(f"Erreur lors du traitement du fichier : {e}")
+    finally:
+        # Nettoyage des fichiers temporaires
+        clean_up_files([docx_path, pdf_path])
+
+
+
 
 @app.get("/convert/")
 async def convert_endpoint(docx_url: str = Query(...)):
@@ -92,12 +130,17 @@ async def convert_endpoint(docx_url: str = Query(...)):
         clean_up_files([docx_path, pdf_path])
 
 @app.get("/convert-store/")
-async def convert_store(background_tasks: BackgroundTasks, docx_url: str = Query(...), output_path: str = Query(...)):
-    try:
-        docx_path = download_docx_file(docx_url)
-        pdf_path = convert_docx_to_pdf(docx_path)
-        # Ajouter une tâche en arrière-plan pour le téléversement sans attendre sa complétion
-        background_tasks.add_task(upload_file_ftp, pdf_path, os.getenv("FTP_HOST"), os.getenv("FTP_USERNAME"), os.getenv("FTP_PASSWORD"), output_path)
-        return {"message": "Conversion initiée. Le fichier sera téléversé sur le FTP."}
-    finally:
-        clean_up_files([docx_path, pdf_path])
+async def convert_store_background(background_tasks: BackgroundTasks, docx_url: str = Query(...), output_path: str = Query(...)):
+    # Planifie l'exécution de la fonction d'opération complète en arrière-plan
+    background_tasks.add_task(
+        process_docx_to_pdf_and_upload,
+        docx_url,
+        output_path,
+        os.getenv("FTP_HOST"),
+        os.getenv("FTP_USERNAME"),
+        os.getenv("FTP_PASSWORD")
+    )
+    
+    # Renvoie immédiatement une réponse indiquant que le processus a été initié
+    return {"message": "Le processus de conversion et de téléversement a été initié en arrière-plan."}
+
