@@ -158,7 +158,7 @@ def process_docx_to_pdf_and_upload(docx_url: str, output_path: str, ftp_host: st
             ftp_username=ftp_username,
             ftp_password=ftp_password,
             log_message=log_message,
-            log_folder="log_folder"  # Assurez-vous d'ajuster ce chemin au dossier de logs souhaité
+            log_folder="/log_folder"  # Assurez-vous d'ajuster ce chemin au dossier de logs souhaité
         )
     finally:
         # Nettoyage des fichiers temporaires
