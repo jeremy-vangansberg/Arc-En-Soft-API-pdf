@@ -6,6 +6,8 @@ from tempfile import NamedTemporaryFile
 from ftplib import FTP
 import os
 
+from fastapi import BackgroundTasks
+
 def ensure_ftp_path(ftp, path):
     """Crée récursivement le chemin sur le serveur FTP si nécessaire."""
     path = path.lstrip('/')  # Supprime le slash initial pour éviter les chemins absolus
@@ -21,128 +23,81 @@ def ensure_ftp_path(ftp, path):
                 ftp.mkd(current_path)  # Crée le dossier s'il n'existe pas
                 ftp.cwd(current_path)  # Navigue dans le dossier nouvellement créé
 
-def upload_file_ftp(file_path, ftp_host, ftp_username, ftp_password, output_path):
+def download_docx_file(url: str) -> str:
+    """Télécharge un fichier DOCX depuis une URL et retourne le chemin du fichier temporaire."""
+    response = requests.get(url)
+    response.raise_for_status()
+
+    with NamedTemporaryFile(delete=False, suffix=".docx") as temp_docx:
+        temp_docx.write(response.content)
+        return temp_docx.name
+
+def convert_docx_to_pdf(docx_path: str) -> str:
+    """Convertit un fichier DOCX en PDF et retourne le chemin du fichier PDF."""
+    pdf_path = docx_path.replace(".docx", ".pdf")
+    cmd = [
+        "libreoffice", "--headless", "--convert-to", 
+        "pdf:writer_pdf_Export:UseLosslessCompression=true,MaxImageResolution=300",
+        "--outdir", os.path.dirname(pdf_path), docx_path
+    ]
+    subprocess.run(cmd, check=True)
+    if not os.path.exists(pdf_path):
+        raise Exception("Failed to create PDF file.")
+    return pdf_path
+
+def clean_up_files(file_paths: list):
+    """Supprime les fichiers temporaires spécifiés."""
+    for path in file_paths:
+        if path and os.path.exists(path):
+            os.remove(path)
+
+def upload_file_ftp(file_path: str, ftp_host: str, ftp_username: str, ftp_password: str, output_path: str):
+    """
+    Téléverse un fichier sur un serveur FTP.
+
+    Args:
+    - file_path (str): Le chemin local du fichier à téléverser.
+    - ftp_host (str): L'hôte du serveur FTP.
+    - ftp_username (str): Le nom d'utilisateur pour se connecter au serveur FTP.
+    - ftp_password (str): Le mot de passe pour se connecter au serveur FTP.
+    - output_path (str): Le chemin complet sur le serveur FTP où le fichier doit être téléversé.
+
+    Cette fonction assure que le chemin de destination existe sur le serveur FTP
+    et téléverse le fichier spécifié à cet emplacement.
+    """
     with FTP(ftp_host, ftp_username, ftp_password) as ftp:
-        # Décompose output_path pour obtenir le chemin du dossier et le nom du fichier
+        # Assure que le chemin du dossier existe sur le serveur FTP
         directory_path, filename = os.path.split(output_path)
-        # S'assure que le chemin du dossier existe
         ensure_ftp_path(ftp, directory_path)
         
-        # Retourne à la racine du FTP
-        ftp.cwd('/')
+        # Construit le chemin complet du fichier sur le serveur FTP
+        ftp.cwd('/')  # S'assure de partir de la racine
+        complete_path = os.path.join(directory_path, filename).lstrip('/')
         
-        # Construit le chemin complet du fichier sur le serveur
-        # Assurez-vous que directory_path ne commence pas par un '/' pour éviter les chemins absolus non intentionnels
-        complete_path = os.path.join('/' + directory_path, filename)
-        
+        # Téléverse le fichier
         with open(file_path, 'rb') as file:
-            try:
-                # Téléverse le fichier au chemin complet
-                ftp.storbinary(f'STOR {complete_path}', file)
-            except Exception as e:
-                print(f"Erreur lors du téléversement du fichier : {e}")
+            ftp.storbinary(f'STOR {complete_path}', file)
+
 
 
 app = FastAPI()
 
 @app.get("/convert/")
-async def convert_docx_to_pdf(docx_url: str = Query(..., description="The URL of the .docx file to be converted")):
-    docx_path = None  # Initialise à None pour être accessible dans le bloc finally
-    pdf_path = None   # Initialise à None pour être accessible dans le bloc finally
-    
+async def convert_endpoint(docx_url: str = Query(...)):
     try:
-        # Télécharge le fichier .docx depuis l'URL fournie
-        response = requests.get(docx_url)
-        response.raise_for_status()
-
-        # Crée un fichier temporaire pour le document .docx téléchargé
-        with NamedTemporaryFile(delete=False, suffix=".docx") as temp_docx:
-            temp_docx.write(response.content)
-            docx_path = temp_docx.name  # Chemin du fichier temporaire .docx
-
-        # Chemin prévu du fichier PDF de sortie
-        pdf_path = docx_path.replace(".docx", ".pdf")
-
-        print(pdf_path)
-
-        # Commande LibreOffice pour la conversion, avec paramètres pour la qualité des images
-        cmd = [
-            "libreoffice", "--headless", "--convert-to", 
-            "pdf:writer_pdf_Export:UseLosslessCompression=true,MaxImageResolution=300",
-            "--outdir", os.path.dirname(pdf_path), docx_path
-        ]
- 
-        # Exécute la commande de conversion
-        subprocess.run(cmd, check=True)
-
-        # Vérifie si le fichier PDF a été créé
-        if not os.path.exists(pdf_path):
-            raise HTTPException(status_code=500, detail="Failed to create PDF file.")
-
-        # Retourne le fichier PDF généré
-        return FileResponse(pdf_path, media_type='application/pdf', filename="converted.pdf", headers={"Content-Disposition": "attachment; filename=converted.pdf"})
-    
-    except requests.exceptions.RequestException as e:
-        raise HTTPException(status_code=400, detail=f"Error downloading the file: {e}")
-    except subprocess.CalledProcessError as e:
-        raise HTTPException(status_code=500, detail="Error converting the file.")
+        docx_path = download_docx_file(docx_url)
+        pdf_path = convert_docx_to_pdf(docx_path)
+        return FileResponse(pdf_path, media_type='application/pdf', filename=os.path.basename(pdf_path))
     finally:
-        # Nettoie le fichier temporaire .docx
-        if docx_path and os.path.exists(docx_path):
-            os.remove(docx_path)
-        # Ici, on ne supprime pas le PDF dans finally pour permettre son téléchargement
+        clean_up_files([docx_path, pdf_path])
 
 @app.get("/convert-store/")
-async def convert_store(
-    docx_url: str = Query(..., description="The URL of the .docx file to be converted"), 
-    output_path: str = Query("folder/converted.pdf", description="The desired output path for PDF file name")):
-    docx_path = None
-    pdf_path = None
+async def convert_store(background_tasks: BackgroundTasks, docx_url: str = Query(...), output_path: str = Query(...)):
     try:
-        # Télécharge le fichier .docx depuis l'URL fournie
-        response = requests.get(docx_url)
-        response.raise_for_status()
-
-        with NamedTemporaryFile(delete=False, suffix=".docx") as temp_docx:
-            temp_docx.write(response.content)
-            docx_path = temp_docx.name
-
-
-        if not output_path.lower().endswith('.pdf'):
-            output_path += '.pdf'
-
-        pdf_path = docx_path.replace(".docx", ".pdf")
-
-        cmd = ["libreoffice", "--headless", "--convert-to", "pdf:writer_pdf_Export:UseLosslessCompression=true,MaxImageResolution=300", "--outdir", os.path.dirname(pdf_path), docx_path]
-        subprocess.run(cmd, check=True)
-
-        if not os.path.exists(pdf_path):
-            raise HTTPException(status_code=500, detail="Failed to create PDF file.")
-
-        # Lire les informations FTP depuis les variables d'environnement
-        ftp_host = os.getenv("FTP_HOST")
-        ftp_username = os.getenv("FTP_USERNAME")
-        ftp_password = os.getenv("FTP_PASSWORD")
-        # ftp_directory = os.getenv("FTP_DIRECTORY")
-
-        # Vérifier que toutes les informations nécessaires sont présentes
-        if not all([ftp_host, ftp_username, ftp_password, output_path]):
-            raise HTTPException(status_code=500, detail="FTP credentials are not fully configured.")
-
-        # Téléverse le fichier PDF sur le serveur FTP
-        upload_file_ftp(pdf_path, ftp_host, ftp_username, ftp_password, output_path)
-
-        return {"message": "Fichier converti et téléversé avec succès sur FTP."}
-    
-    except requests.exceptions.RequestException as e:
-        raise HTTPException(status_code=400, detail=f"Error downloading the file: {e}")
-    except subprocess.CalledProcessError as e:
-        raise HTTPException(status_code=500, detail="Error converting the file.")
+        docx_path = download_docx_file(docx_url)
+        pdf_path = convert_docx_to_pdf(docx_path)
+        # Ajouter une tâche en arrière-plan pour le téléversement sans attendre sa complétion
+        background_tasks.add_task(upload_file_ftp, pdf_path, os.getenv("FTP_HOST"), os.getenv("FTP_USERNAME"), os.getenv("FTP_PASSWORD"), output_path)
+        return {"message": "Conversion initiée. Le fichier sera téléversé sur le FTP."}
     finally:
-        # Nettoyage: supprimer les fichiers temporaires
-        if docx_path and os.path.exists(docx_path):
-            os.remove(docx_path)
-        if pdf_path and os.path.exists(pdf_path):
-            os.remove(pdf_path)
-
-
+        clean_up_files([docx_path, pdf_path])
