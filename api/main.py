@@ -10,6 +10,38 @@ from starlette.responses import JSONResponse
 from typing import List
 from datetime import datetime
 
+def log_to_ftp(ftp_host: str, ftp_username: str, ftp_password: str, log_message: str, log_folder: str = "logs"):
+    """
+    Enregistre un message de log dans un dossier spécifié sur un serveur FTP.
+
+    Args:
+    - ftp_host (str): L'hôte du serveur FTP.
+    - ftp_username (str): Le nom d'utilisateur pour se connecter au serveur FTP.
+    - ftp_password (str): Le mot de passe pour se connecter au serveur FTP.
+    - log_message (str): Le message à enregistrer dans le fichier de log.
+    - log_folder (str): Le dossier sur le serveur FTP où le fichier de log sera enregistré.
+    """
+
+    # Crée un nom de fichier basé sur la date et l'heure actuelle
+    log_filename = f"log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+    
+    # Crée un chemin complet pour le fichier de log sur le serveur FTP
+    log_file_path = os.path.join(log_folder, log_filename)
+    
+    # Crée un fichier temporaire pour écrire le message de log
+    with NamedTemporaryFile(mode="w", delete=False) as temp_log_file:
+        temp_log_file.write(log_message)
+        temp_log_file_path = temp_log_file.name
+
+    # Connecte au serveur FTP et téléverse le fichier de log
+    with FTP(ftp_host, ftp_username, ftp_password) as ftp:
+        ensure_ftp_path(ftp, log_folder)  # S'assure que le dossier de log existe
+        with open(temp_log_file_path, 'rb') as file:
+            ftp.storbinary(f'STOR {log_file_path}', file)
+
+    # Supprime le fichier temporaire
+    os.remove(temp_log_file_path)
+
 app = FastAPI()
 
 # Liste des adresses IP autorisées
@@ -116,7 +148,16 @@ def process_docx_to_pdf_and_upload(docx_url: str, output_path: str, ftp_host: st
         upload_file_ftp(pdf_path, ftp_host, ftp_username, ftp_password, output_path)
         
     except Exception as e:
-        print(f"Erreur lors du traitement du fichier : {e}")
+        log_message = f"Erreur lors du traitement du fichier : {str(e)}"
+        print(log_message)
+        # Appel à la fonction log_to_ftp pour enregistrer le message d'erreur sur le serveur FTP
+        log_to_ftp(
+            ftp_host=ftp_host,
+            ftp_username=ftp_username,
+            ftp_password=ftp_password,
+            log_message=log_message,
+            log_folder="log_folder"  # Assurez-vous d'ajuster ce chemin au dossier de logs souhaité
+        )
     finally:
         # Nettoyage des fichiers temporaires
         clean_up_files([docx_path, pdf_path])
