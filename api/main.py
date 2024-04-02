@@ -24,23 +24,25 @@ def log_to_ftp(ftp_host: str, ftp_username: str, ftp_password: str, log_message:
 
     # Crée un nom de fichier basé sur la date et l'heure actuelle
     log_filename = f"log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+    log_file_path = os.path.join(log_folder, log_filename).replace('\\', '/')
     
-    # Crée un chemin complet pour le fichier de log sur le serveur FTP
-    log_file_path = os.path.join(log_folder, log_filename)
+    print(f"Tentative de log FTP dans : {log_file_path}")  # Débogage
     
-    # Crée un fichier temporaire pour écrire le message de log
-    with NamedTemporaryFile(mode="w", delete=False) as temp_log_file:
+    with NamedTemporaryFile("w", delete=False) as temp_log_file:
         temp_log_file.write(log_message)
-        temp_log_file_path = temp_log_file.name
+        temp_log_path = temp_log_file.name
 
-    # Connecte au serveur FTP et téléverse le fichier de log
-    with FTP(ftp_host, ftp_username, ftp_password) as ftp:
-        ensure_ftp_path(ftp, log_folder)  # S'assure que le dossier de log existe
-        with open(temp_log_file_path, 'rb') as file:
-            ftp.storbinary(f'STOR {log_file_path}', file)
-
-    # Supprime le fichier temporaire
-    os.remove(temp_log_file_path)
+    try:
+        with FTP(ftp_host, ftp_username, ftp_password) as ftp:
+            ftp.cwd('/')  # Assurez-vous d'être à la racine
+            if log_folder != '/':  # Vérifie si le dossier de logs n'est pas la racine
+                ensure_ftp_path(ftp, log_folder)
+            with open(temp_log_path, 'rb') as file:
+                ftp.storbinary(f'STOR {log_file_path}', file)
+    except Exception as e:
+        print(f"Erreur lors du téléversement du log sur FTP : {e}")
+    finally:
+        os.remove(temp_log_path)  # Nettoyage du fichier temporaire
 
 app = FastAPI()
 
