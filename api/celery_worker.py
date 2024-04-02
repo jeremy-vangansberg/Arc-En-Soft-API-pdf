@@ -1,11 +1,13 @@
 from celery import Celery
 import os
 
-REDIS_PASSWORD= os.getenv('REDIS_PASSWORD')
+REDIS_PASSWORD = os.getenv('REDIS_PASSWORD')
+
+REDIS_USER = os.getenv('REDIS_USER')
 
 celery_app = Celery(
     "worker",
-    broker=f"redis://{REDIS_PASSWORD}@demo_redis:6379/0",
+    broker=f"redis://{REDIS_USER}:{REDIS_PASSWORD}@demo_redis:6379/0",
     include=["tasks"]  # Assurez-vous de mettre à jour le chemin vers vos tâches Celery
 )
 
