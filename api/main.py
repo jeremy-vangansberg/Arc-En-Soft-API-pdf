@@ -16,8 +16,11 @@ ALLOWED_IPS = ["192.168.1.1", "127.0.0.1", "45.81.84.133", '172.18.0.2', "10.0.1
 
 @app.middleware("http")
 async def ip_filter_middleware(request: Request, call_next):
-    client_host = request.client.host
-    if client_host not in ALLOWED_IPS:
+    # Obtient l'adresse IP du client d'origine à partir de l'en-tête `X-Forwarded-For`
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    client_ip = forwarded_for.split(",")[0] if forwarded_for else request.client.host
+    
+    if client_ip not in ALLOWED_IPS:
         return JSONResponse(status_code=403, content={"detail": "Accès non autorisé."})
     response = await call_next(request)
     return response
