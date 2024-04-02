@@ -9,6 +9,7 @@ from fastapi import BackgroundTasks
 from starlette.responses import JSONResponse
 from typing import List
 from datetime import datetime
+import pytz
 
 def log_to_ftp(ftp_host: str, ftp_username: str, ftp_password: str, log_message: str, log_folder: str = "logs"):
     """
@@ -23,7 +24,11 @@ def log_to_ftp(ftp_host: str, ftp_username: str, ftp_password: str, log_message:
     """
 
     # Crée un nom de fichier basé sur la date et l'heure actuelle
-    log_filename = f"log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+    tz = pytz.timezone('Europe/Paris')
+
+    now =datetime.now(tz)
+
+    log_filename = f"log_{now.strftime('%Y%m%d_%H%M%S')}.txt"
     log_file_path = os.path.join(log_folder, log_filename).replace('\\', '/')
     
     print(f"Tentative de log FTP dans : {log_file_path}")  # Débogage
