@@ -12,7 +12,7 @@ from typing import List
 app = FastAPI()
 
 # Liste des adresses IP autorisées
-ALLOWED_IPS = ["192.168.1.1", "127.0.0.1", "45.81.84.133", '172.18.0.2']
+ALLOWED_IPS = ["192.168.1.1", "127.0.0.1", "45.81.84.133", '172.18.0.2', "10.0.1.13"]
 
 @app.middleware("http")
 async def ip_filter_middleware(request: Request, call_next):
