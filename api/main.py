@@ -8,7 +8,7 @@ from celery_worker import celery_app
 app = FastAPI()
 
 # Liste des adresses IP autorisées, '*' permet l'accès à toutes les IP
-ALLOWED_IPS = ["109.234.166.249"]
+ALLOWED_IPS = ["109.234.166.249", "10.0.1.13"]
 
 @app.middleware("http")
 async def ip_filter_middleware(request: Request, call_next):
