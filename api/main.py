@@ -8,7 +8,7 @@ from celery_worker import celery_app
 app = FastAPI()
 
 # Liste des adresses IP autorisées, '*' permet l'accès à toutes les IP
-ALLOWED_IPS = ["109.234.166.249", "10.0.1.13"]
+ALLOWED_IPS = ["109.234.166.249"]
 
 @app.middleware("http")
 async def ip_filter_middleware(request: Request, call_next):
@@ -17,12 +17,12 @@ async def ip_filter_middleware(request: Request, call_next):
         response = await call_next(request)
         return response
 
-    client_host = request.client.host
-    if client_host not in ALLOWED_IPS:
-        return JSONResponse(status_code=403, content={"detail": "Accès non autorisé."})
+    # Obtient l'adresse IP d'origine à partir de l'en-tête X-Forwarded-For
+    x_forwarded_for = request.headers.get("X-Forwarded-For")
+    client_ip = x_forwarded_for.split(",")[0] if x_forwarded_for else request.client.host
 
-    response = await call_next(request)
-    return response
+    if client_ip not in ALLOWED_IPS:
+        return JSONResponse(status_code=403, content={"detail": "Accès non autorisé."})
 
 @app.get("/convert/")
 async def convert_endpoint(docx_url: str = Query(...)):
