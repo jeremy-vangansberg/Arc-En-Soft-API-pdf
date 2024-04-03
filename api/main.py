@@ -8,7 +8,7 @@ from celery_worker import celery_app
 app = FastAPI()
 
 # Liste des adresses IP autorisées, '*' permet l'accès à toutes les IP
-ALLOWED_IPS = ["109.234.166.249", "45.81.84.133"]
+ALLOWED_IPS = ["192.168.1.1", "127.0.0.1", "*"]
 
 @app.middleware("http")
 async def ip_filter_middleware(request: Request, call_next):
@@ -17,12 +17,12 @@ async def ip_filter_middleware(request: Request, call_next):
         response = await call_next(request)
         return response
 
-    # Obtient l'adresse IP d'origine à partir de l'en-tête X-Forwarded-For
-    x_forwarded_for = request.headers.get("X-Forwarded-For")
-    client_ip = x_forwarded_for.split(",")[0] if x_forwarded_for else request.client.host
-
-    if client_ip not in ALLOWED_IPS:
+    client_host = request.client.host
+    if client_host not in ALLOWED_IPS:
         return JSONResponse(status_code=403, content={"detail": "Accès non autorisé."})
+
+    response = await call_next(request)
+    return response
 
 @app.get("/convert/")
 async def convert_endpoint(docx_url: str = Query(...)):
@@ -50,5 +50,6 @@ async def convert_store_background(docx_url: str = Query(...), output_path: str 
     
     # Renvoie immédiatement une réponse indiquant que le processus a été initié
     return {"message": "Le processus de conversion et de téléversement a été initié en arrière-plan.", "task_id": task.id}
+
 
 
