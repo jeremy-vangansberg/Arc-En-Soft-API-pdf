@@ -2,7 +2,6 @@ from celery import Celery
 import os
 
 REDIS_PASSWORD = os.getenv('REDIS_PASSWORD')
-
 REDIS_USER = os.getenv('REDIS_USER')
 
 celery_app = Celery(

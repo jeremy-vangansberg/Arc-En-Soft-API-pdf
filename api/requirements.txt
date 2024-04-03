@@ -5,3 +5,6 @@ requests
 cryptography
 pytz
 celery[redis]
+pytest
+requests-mock
+pytest-mock
