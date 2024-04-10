@@ -13,6 +13,9 @@ import logging
 # Configuration du logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+# Création d'une instance du logger
+logger = logging.getLogger(__name__)
+
 def log_to_ftp(ftp_host: str, ftp_username: str, ftp_password: str, log_message: str, log_folder: str = "logs"):
     """
     Enregistre un message de log dans un dossier spécifié sur un serveur FTP.
@@ -22,7 +25,7 @@ def log_to_ftp(ftp_host: str, ftp_username: str, ftp_password: str, log_message:
     log_filename = f"log_{now.strftime('%Y%m%d_%H%M%S')}.txt"
     log_file_path = os.path.join(log_folder, log_filename).replace('\\', '/')
     
-    logging.info(f"Tentative de log FTP dans : {log_file_path}")
+    logger.info(f"Tentative de log FTP dans : {log_file_path}")
     
     with NamedTemporaryFile("w", delete=False) as temp_log_file:
         temp_log_file.write(log_message)
@@ -30,18 +33,18 @@ def log_to_ftp(ftp_host: str, ftp_username: str, ftp_password: str, log_message:
 
     try:
         with FTP(ftp_host, ftp_username, ftp_password) as ftp:
-            logging.info(f"Connexion établie avec {ftp_host}")
+            logger.info(f"Connexion établie avec {ftp_host}")
             ftp.cwd('/')  # Assurez-vous d'être à la racine
             if log_folder != '/':
                 ensure_ftp_path(ftp, log_folder)
             with open(temp_log_path, 'rb') as file:
                 ftp.storbinary(f'STOR {log_file_path}', file)
-                logging.info(f"Fichier {log_file_path} téléversé avec succès.")
+                logger.info(f"Fichier {log_file_path} téléversé avec succès.")
     except Exception as e:
-        logging.error(f"Erreur lors du téléversement du log sur FTP : {e}")
+        logger.error(f"Erreur lors du téléversement du log sur FTP : {e}")
     finally:
         os.remove(temp_log_path)  # Nettoyage du fichier temporaire
-        logging.info("Fichier temporaire supprimé.")
+        logger.info("Fichier temporaire supprimé.")
 
 def ensure_ftp_path(ftp, path):
     """
@@ -56,26 +59,26 @@ def ensure_ftp_path(ftp, path):
             current_path += "/" + directory
             try:
                 ftp.cwd(current_path)
-                logging.info(f"Navigué vers {current_path}.")
+                logger.info(f"Navigué vers {current_path}.")
             except Exception:
                 ftp.mkd(current_path)  # Crée le dossier s'il n'existe pas
                 ftp.cwd(current_path)  # Navigue dans le dossier nouvellement créé
-                logging.info(f"Dossier {current_path} créé et navigation vers ce dossier.")
+                logger.info(f"Dossier {current_path} créé et navigation vers ce dossier.")
 
 def download_docx_file(url: str) -> str:
     """Télécharge un fichier DOCX depuis une URL et retourne le chemin du fichier temporaire."""
-    logging.info(f"Téléchargement du fichier DOCX depuis : {url}")
+    logger.info(f"Téléchargement du fichier DOCX depuis : {url}")
     response = requests.get(url)
     response.raise_for_status()
 
     with NamedTemporaryFile(delete=False, suffix=".docx") as temp_docx:
         temp_docx.write(response.content)
-        logging.info(f"Fichier DOCX téléchargé et stocké temporairement à : {temp_docx.name}")
+        logger.info(f"Fichier DOCX téléchargé et stocké temporairement à : {temp_docx.name}")
         return temp_docx.name
 
 def convert_docx_to_pdf(docx_path: str) -> str:
     """Convertit un fichier DOCX en PDF et retourne le chemin du fichier PDF."""
-    logging.info(f"Conversion du fichier DOCX {docx_path} en PDF")
+    logger.info(f"Conversion du fichier DOCX {docx_path} en PDF")
     pdf_path = docx_path.replace(".docx", ".pdf")
     cmd = [
         "libreoffice", "--headless", "--convert-to", 
@@ -84,23 +87,23 @@ def convert_docx_to_pdf(docx_path: str) -> str:
     ]
     subprocess.run(cmd, check=True)
     if not os.path.exists(pdf_path):
-        logging.error("Échec de la création du fichier PDF.")
+        logger.error("Échec de la création du fichier PDF.")
         raise Exception("Failed to create PDF file.")
-    logging.info(f"Fichier PDF créé à : {pdf_path}")
+    logger.info(f"Fichier PDF créé à : {pdf_path}")
     return pdf_path
 
 def clean_up_files(file_paths: list):
     """Supprime les fichiers temporaires spécifiés."""
     for path in file_paths:
         if path and os.path.exists(path):
-            logging.info(f"Suppression du fichier temporaire : {path}")
+            logger.info(f"Suppression du fichier temporaire : {path}")
             os.remove(path)
 
 def upload_file_ftp(file_path: str, ftp_host: str, ftp_username: str, ftp_password: str, output_path: str):
     """
     Téléverse un fichier sur un serveur FTP.
     """
-    logging.info(f"Téléversement du fichier {file_path} vers {output_path} sur le serveur FTP {ftp_host}")
+    logger.info(f"Téléversement du fichier {file_path} vers {output_path} sur le serveur FTP {ftp_host}")
     with FTP(ftp_host, ftp_username, ftp_password) as ftp:
         directory_path, filename = os.path.split(output_path)
         ensure_ftp_path(ftp, directory_path)
@@ -108,13 +111,13 @@ def upload_file_ftp(file_path: str, ftp_host: str, ftp_username: str, ftp_passwo
         complete_path = os.path.join(directory_path, filename).lstrip('/')
         with open(file_path, 'rb') as file:
             ftp.storbinary(f'STOR {complete_path}', file)
-            logging.info(f"Fichier {file_path} téléversé avec succès vers {complete_path}")
+            logger.info(f"Fichier {file_path} téléversé avec succès vers {complete_path}")
 
 def process_docx_to_pdf_and_upload(docx_url: str, output_path: str, ftp_host: str, ftp_username: str, ftp_password: str):
     """
     Télécharge un fichier DOCX, le convertit en PDF, et téléverse le PDF sur FTP.
     """
-    logging.info(f"Traitement et téléversement du fichier DOCX depuis {docx_url} vers {output_path} sur FTP")
+    logger.info(f"Traitement et téléversement du fichier DOCX depuis {docx_url} vers {output_path} sur FTP")
     docx_path = download_docx_file(docx_url)
     pdf_path = convert_docx_to_pdf(docx_path)
     upload_file_ftp(pdf_path, ftp_host, ftp_username, ftp_password, output_path)
