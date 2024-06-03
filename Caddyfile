@@ -1,3 +1,3 @@
-photo-api-photo.plqo7c.easypanel.host {
+:80 {
   reverse_proxy docxtopdf_api:80
 }
