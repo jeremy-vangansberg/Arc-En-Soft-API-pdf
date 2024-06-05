@@ -21,7 +21,7 @@ async def ip_filter_middleware(request: Request, call_next):
     client_ip = x_forwarded_for.split(",")[0] if x_forwarded_for else request.client.host
 
     if client_ip not in ALLOWED_IPS:
-        return JSONResponse(status_code=403, content={"detail": "Accès non autorisé."})
+        return JSONResponse(status_code=403, content={f"detail": "Accès non autorisé. ip: {client_ip}"})
 
     response = await call_next(request)
     return response
