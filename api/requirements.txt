@@ -4,7 +4,7 @@ python-multipart==0.0.5
 requests
 cryptography
 pytz
-celery[redis]
+celery[redis]==5.4.0
 pytest
 requests-mock
 pytest-mock
