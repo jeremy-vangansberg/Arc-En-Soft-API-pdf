@@ -37,9 +37,9 @@ async def convert_endpoint(docx_url: str = Query(...)):
 
 @app.get("/convert-store/")
 async def convert_store_background(
-    docx_url: str = Query(...), 
-    output_path: str = Query(...),
-    ftp_host: str = Query(...)):
+    docx_url: str = Query('https%253A%252F%252Fcapcertification.com%252Fwp-content%252Fuploads%252Faudit%252F2021%252F11361%252F11361-Contrat-CAPCERT-20240328-174118.docx'), 
+    output_path: str = Query('test/exemple.pdf'),
+    ftp_host : str = Query('ftp.hefa8773.odns.fr')):
     # Envoie la tâche à Celery pour une exécution en arrière-plan
     # et passe toutes les informations nécessaires, y compris les paramètres FTP
     task = celery_app.send_task(
