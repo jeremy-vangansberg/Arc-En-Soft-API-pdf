@@ -36,7 +36,10 @@ async def convert_endpoint(docx_url: str = Query(...)):
         clean_up_files([docx_path, pdf_path])
 
 @app.get("/convert-store/")
-async def convert_store_background(docx_url: str = Query(...), output_path: str = Query(...)):
+async def convert_store_background(
+    docx_url: str = Query(...), 
+    output_path: str = Query(...),
+    ftp_host: str = Query(...)):
     # Envoie la tâche à Celery pour une exécution en arrière-plan
     # et passe toutes les informations nécessaires, y compris les paramètres FTP
     task = celery_app.send_task(
@@ -44,7 +47,7 @@ async def convert_store_background(docx_url: str = Query(...), output_path: str 
         args=[
             docx_url, 
             output_path, 
-            os.getenv("FTP_HOST"), 
+            ftp_host, 
             os.getenv("FTP_USERNAME"), 
             os.getenv("FTP_PASSWORD")
         ]
